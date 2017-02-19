@@ -5,11 +5,13 @@ date: "February 18, 2017"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+
+```r
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r message=FALSE}
+
+```r
 library(R.utils)
 library(tm)
 library(dplyr)
@@ -33,7 +35,8 @@ In this report I'll perform the loading of the documents and will perform an exp
 
 First off we'll need to download the necessary files. 
 
-```{r}
+
+```r
 #Set the URL for the download
 url <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip" 
 #To prevent unnecessary downloading, only perform this if the final directory is not available
@@ -46,20 +49,50 @@ if(!dir.exists("./Data/final"))
 
 Let's take a look at what we downloaded: 
 
-```{r }
+
+```r
 writeLines(dir('./Data/final', recursive=TRUE))
+```
+
+```
+## de_DE/de_DE.blogs.txt
+## de_DE/de_DE.news.txt
+## de_DE/de_DE.twitter.txt
+## en_US/en_US.blogs.txt
+## en_US/en_US.news.txt
+## en_US/en_US.twitter.txt
+## fi_FI/fi_FI.blogs.txt
+## fi_FI/fi_FI.news.txt
+## fi_FI/fi_FI.twitter.txt
+## ru_RU/ru_RU.blogs.txt
+## ru_RU/ru_RU.news.txt
+## ru_RU/ru_RU.twitter.txt
 ```
 
 There are a total of twelve different documents divided over four languages: English (EN), German (DE), Finnish (FI) and Russion (RU). For this report we'll only be focusing on the English documents. These range in size between 167 and 225 MB. So how many lines are we talking about here? Let's take the blog file as an example.
 
-```{r}
+
+```r
 countLines('./Data/final/en_US/en_US.blogs.txt')
+```
+
+```
+## [1] 899288
+## attr(,"lastLineHasNewline")
+## [1] TRUE
 ```
 
 Wow, that's a lot. Let's take a look at the first few lines of the English blog, to see what we're dealing with: 
 
-```{r}
+
+```r
 writeLines(readLines('./Data/final/en_US/en_US.blogs.txt')[1:3])
+```
+
+```
+## In the years thereafter, most of the Oil fields and platforms were named after pagan “gods”.
+## We love you Mr. Brown.
+## Chad has been awesome with the kids and holding down the fort while I work later than usual! The kids have been busy together playing Skylander on the XBox together, after Kyan cashed in his $$$ from his piggy bank. He wanted that game so bad and used his gift card from his birthday he has been saving and the money to get it (he never taps into that thing either, that is how we know he wanted it so bad). We made him count all of his money to make sure that he had enough! It was very cute to watch his reaction when he realized he did! He also does a very good job of letting Lola feel like she is playing too, by letting her switch out the characters! She loves it almost as much as him.
 ```
 
 It's clear that every line has no connection to the previous. We can assume that every line in this file is a separate sample and thus a document in its own right. 
@@ -69,7 +102,8 @@ It's clear that every line has no connection to the previous. We can assume that
 Of course a textfile of this size will not fit in the memory of most computers. We'll be making use of sample files to bypass this problem. A 5% sample should be sufficient for analyses purposes. This will still give us a large number of samples per file to work with.
 For this purpose I've written two functions. The first one will take a sample of a file and write it at a given location. It could be possible to read the file in chunks, but I figured a 200+ MB file should pose no problems for a computer with 8 GB memory. 
 
-```{r}
+
+```r
 sampleFile <- function(source, destination)
 {
     con <- readLines(source) #Read the file in memory
@@ -83,7 +117,8 @@ sampleFile <- function(source, destination)
 Next we'll also write a function to trawl through the different documents and call the sampleFile function for each of them. It takes a sourcedir variable with the root folder for all the documents and a destdir folder with the root for where all files should be written to. 
 
 
-```{r}
+
+```r
 processFiles <- function(sourcedir, destdir)
 {
     if(!dir.exists(destdir))
@@ -110,17 +145,17 @@ processFiles <- function(sourcedir, destdir)
     }
     
 }
-
 ```
 
 Next we set the seed and start with our sampling. 
 
 
-```{r message=FALSE, warning = FALSE}
+
+```r
 #We'll set a seed for reproducibility
 set.seed(12345)
-if(!dir.exists('./Data/samples'))
-    processFiles('./Data/final', './Data/samples')
+
+processFiles('./Data/final', './Data/samples')
 ```
 
 We'll now have a set of sample files only 5% of their original size. This should be small enough for general analysis purposes.
@@ -134,7 +169,8 @@ For our analysis, we'll be focussing on just the English files. We'll create a c
 Since we want each line to be a separate document, we will first need to split up each file. To prevent any unnecessary strain on the harddrive, we'll process each file in memory before feeding it to the corpus. 
 For this purpose a special function is written. I prefer to write everything in functions, it allows for reusability in the future. 
 
-```{r}
+
+```r
 #Parameter is the language folder where the documents are located
 createCorpus <- function(sourcedir) 
 {
@@ -176,10 +212,26 @@ corp <- createCorpus('./Data/samples/en_US')
 corp
 ```
 
+```
+## <<VCorpus>>
+## Metadata:  corpus specific: 0, document level (indexed): 1
+## Content:  documents: 213710
+```
+
 Our corpus shows that it contains over 200,000 documents. Since we added the sourcefile to the metadata during creation, we can even see from which sourcefile the data came from: 
 
-```{r}
+
+```r
 group_by(meta(corp), source) %>% summarise(total_docs = n())
+```
+
+```
+## # A tibble: 3 × 2
+##              source total_docs
+##               <chr>      <int>
+## 1   en_US.blogs.txt      45216
+## 2    en_US.news.txt      50308
+## 3 en_US.twitter.txt     118186
 ```
 
 ## Cleaning
@@ -200,13 +252,15 @@ For now we'll clean up our text with the following actions:
 
 First we'll create a custom function to change certain patterns to a space. This function is not mine but copied from the helpful blog [Eight2Late][1]. The idea is that some people tend to write words like "Therefore I say:Hi!". Without cleaning this up, tm will transform this as "therefore i sayhi". By first replacing the colon with a space, we'll preserve the words in their intended form. 
 
-```{r}
+
+```r
 toSpace <- content_transformer(function(x, pattern) {return (gsub(pattern, " ", x))})
 ```
 
 So now let's clean up our text: 
 
-```{r}
+
+```r
 corp <- tm_map(corp, toSpace, "-")
 corp <- tm_map(corp, toSpace, ":")
 corp <- tm_map(corp, toSpace, "/")
@@ -215,18 +269,19 @@ corp <- tm_map(corp, toSpace, "/")
 Next we need to clean up our twitter documents. All those hashtags and handles need to be replaced.  
 We'll make two new functions and apply them to our corpus. The regex expression is adapted from this [stackoverflow post][2]
 
-```{r}
+
+```r
 labelHandle <- content_transformer(function(x) {return (gsub("\\S*@(?:\\[[^\\]]+\\]|\\S+)", "twitterhandle", x))})
 labelHashtag <- content_transformer(function(x) {return (gsub("\\S*#(?:\\[[^\\]]+\\]|\\S+)", "twitterhashtag", x))})
 
 corp <- tm_map(corp, labelHandle)
 corp <- tm_map(corp, labelHashtag)
-
 ```
 
 And finally we'll remove numbers, punctuation and bring all our text to lowercase. 
 
-```{r}
+
+```r
 corp <- tm_map(corp, removeNumbers)
 corp <- tm_map(corp, removePunctuation)
 corp <- tm_map(corp, content_transformer(tolower))
@@ -235,137 +290,67 @@ corp <- tm_map(corp, content_transformer(tolower))
 ## Document Term Matrix
 
 It's nice that we have our words cleaned up, but we know very little about what we have without looking at specific samples. To fix this we'll create a DocumentTermMatrix. A sparse matrix with a column for each unique word and a row for each document. 
-```{r}
+
+```r
 corpdtm <- DocumentTermMatrix(corp)
 corpdtm 
+```
 
+```
+## <<DocumentTermMatrix (documents: 213710, terms: 121580)>>
+## Non-/sparse entries: 3469719/25979392081
+## Sparsity           : 100%
+## Maximal term length: 322
+## Weighting          : term frequency (tf)
 ```
 
 We got a collection of 213710 documents, which matches our corpus, and we have 121580 terms, in this case distinct words. That's a lot of words, I'm sure there are some words that are rarely used. Let's take a look at what we've got. 
 
-```{r}
 
+```r
 dat <- data.frame(word = colnames(corpdtm), total = col_sums(corpdtm), mean = col_means(corpdtm))
 dat <- arrange(dat, desc(total))
-
 ```
 
 Our top 5 words are: 
 
-```{r}
+
+```r
 head(dat, 5)
+```
+
+```
+##   word  total      mean
+## 1  the 237116 1.1095222
+## 2  and 119352 0.5584764
+## 3  for  54846 0.2566375
+## 4 that  51919 0.2429414
+## 5  you  46798 0.2189790
 ```
 
 This isn't unexpected. "The"" is the most popular word and appears on average at least once in every document. One thing that's quite clear is that the frequency of the word is rapidly dropping. Let's take a look at how fast this drops, we'll present it in log10. 
 
-```{r echo=FALSE}
-d <- log10(dat$total)
-g <- ggplot(data = dat, aes(x=log10(total)))
-g <- g + geom_histogram(bins = 100) + xlab("Total occurances in log 10")
-print(g)
-summary(log10(dat$total))
-```
-
-Most words have very few occurances, mostly one or two times. The words in our top 6 are a not the norm. So what kind of words can be found in the bottom end of our word list? 
-
-```{r}
-tail(dat, 3)
-```
-
-These are clearly not words that are supposed to be in an english blog. It's safe to say that if a word only appears once in 121580 documents, there are not enough observations to make a prediction. For now we'll leave the words in, but we'll filter them out when we create our n-grams. 
-
-So we looked at some word statistics. Let's also look at some document information. What is the average word length of a document? Is there any difference between news, blog and twitter documents?
-
-```{r}
-dat <- data.frame(source = meta(corp)$source, total = row_sums(corpdtm))
-g <- ggplot(data=dat, aes(x=source, y = total))
-g <- g+geom_boxplot(aes(col=source)) + ylab("Word count")
-print(g)
-```
-
-
-Of course the Twitter source contains the fewest words per document. With a 140 character limit that's to be expected. It's clear that the news articles have a more uniform size, the distance between the 25th and 75 quartile is a lot smaller. The fact that many documents have a small word count shows that it was a good idea to consider each line a document in it's own right. If we didn't then we would eventually end up with n-grams constructed over multiple documents, these wouldn't make any sense and would pollute our model. 
-
-## Tri-grams
-
-Now that we took a look at the words in our document, it's time to take a look at the possible three-word combinations (tri-grams) in this corpus. We'll construct a new term matrix with all the possible tri-grams. 
-
-```{r}
-TrigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
-tdmngram <- TermDocumentMatrix(corp, control = list(tokenize = TrigramTokenizer))
-tdmngram
-```
-
-Wow, we have a LOT more terms now. Just like our word list, let's create an overview of the top 6 tri-grams: 
-
-```{r}
-dat <- data.frame(word = rownames(tdmngram), total = row_sums(tdmngram), mean = row_means(tdmngram))
-dat <- arrange(dat, desc(total))
-head(dat)
-```
-
-One thing that's noticeable is that the mean of even the top tri-gram is significantly lower than the mean of the top word. Let's see the number of occurances in log10 displayed in a histograph. 
-
-```{r echo=FALSE}
-d <- log10(dat$total)
-g <- ggplot(data = dat, aes(x=log10(total)))
-g <- g + geom_histogram(bins = 100) + xlab("Total occurances in log 10")
-print(g)
-summary(log10(dat$total))
-```
-
-It's clear we need to clean up our term document matrix. We could filter on sparsity, the percentage of total documents that a certain term does NOT appear in, but our list of documents is so big that even our term document matrix tells us that we have attained a 100% sparsity.  
-As proof, look what happens when we filter our matrix to 99.9% sparsity: 
-
-```{r}
-removeSparseTerms(tdmngram, 0.999)
-```
-
-We end up with only 139 terms. Not nearly enough to create a good model. Instead, we'll filter on minimum amount of occurances. We'll maintain that a tri-gram should appear at least 10 times for it to be included in our matrix. 
-
-```{r}
-tdmngram <-  tdmngram[findFreqTerms(tdmngram, lowfreq = 10),]
-tdmngram
-```
-
-There we go, we got 24373 terms that have occured at least once in our overview. Let's take a new look at our data. First we'll collect and order the terms again. After that we'll check our last 6 terms to see if they indeed have at least 10 occurances. 
-
-```{r}
-dat <- data.frame(word = rownames(tdmngram), total = row_sums(tdmngram), mean = row_means(tdmngram))
-dat <- arrange(dat, desc(total))
-tail(dat)
-```
-There we go, all of them at least 10 occurances. Let's see how the new distribution looks like: 
-
-```{r echo=FALSE}
-d <- log10(dat$total)
-g <- ggplot(data = dat, aes(x=log10(total)))
-g <- g + geom_histogram(bins = 100) + xlab("Total occurances in log 10")
-print(g)
-summary(log10(dat$total))
-```
-
-This looks a lot better. It's still in log 10, but at least the huge spike of one hit wonders has been removed. 
-
-So, let's poke around in our data. What's better, love or hate? 
-
-```{r}
-filter(dat, word == "i love you" | word == "i hate you")
-```
-
-Wow, ten times more love than hate in this corpus. But besides you, what do people love most? :) Here's the top 10:
-
-```{r}
-head(filter(dat, grepl("i love ", word)), 10)
-```
-
-It's still you :)
-
-#Final notes
-
-So far our exploratory analysis. Certain things might change in the future. For example the 10 count cut-off for the tri-gram matrix might seem too harsh when it's time to create prediction models. I might decide to lower or raise the cut-off to increase accuracy or reduce system load respectively. 
 
 
 
-[1]: https://eight2late.wordpress.com/2015/05/27/a-gentle-introduction-to-text-mining-using-r/
-[2]: http://stackoverflow.com/questions/11846975/javascript-regex-for-matching-twitter-like-hashtags
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
