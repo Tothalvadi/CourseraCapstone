@@ -432,6 +432,10 @@ tail(dat)</code></pre>
 <p>It’s still you :)</p>
 </div>
 </div>
+<div id="how-to-create-a-model" class="section level1">
+<h1>How to create a model</h1>
+<p>To create a model, I would start with a 2, 3 and 4-gram matrix. Each of these would be used to find the most frequent 2nd, 3rd or 4th word in each sequence. For example, with a 4-gram matrix, I would create a list of most popular sequences just like the previous examples. However, I would then split the sentence of four words into two seperate columns. “I love vanilla icecream” would turn into c(“I love vanilla”, “icecream”). The total count would indicate it’s popularity. So next time someone types “I love vanilla” it would look up all 4-grams which begin with that sentence and take the most popular one. In case the combination of words can not be found, a new search will be performed in the 3-gram matrix for the last two words and so on.</p>
+</div>
 <div id="final-notes" class="section level1">
 <h1>Final notes</h1>
 <p>So far our exploratory analysis. Certain things might change in the future. For example the 10 count cut-off for the tri-gram matrix might seem too harsh when it’s time to create prediction models. I might decide to lower or raise the cut-off to increase accuracy or reduce system load respectively.</p>
